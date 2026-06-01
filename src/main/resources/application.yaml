@@ -1,0 +1,15 @@
+app:
+
+spring:
+  application:
+    name: springbootmvc
+
+  thymeleaf:
+    cache: false
+
+  jpa:
+    database-platform: org.hibernate.dialect.MySQLDialect
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
