@@ -8,6 +8,8 @@
 
 This is a **full-stack web application** built as a GUVI assignment to demonstrate the Spring Boot MVC architecture. The application provides two independent CRUD modules — a **Product Catalog** and a **Book Feedback System** — served through server-side rendered HTML pages using the **Thymeleaf** templating engine backed by a **MySQL** database.
 
+> 📖 For a complete, beginner-friendly walkthrough of how every file and concept works, see **[CODE_EXPLANATION.md](CODE_EXPLANATION.md)**
+
 ---
 
 ## 🧰 Tech Stack
@@ -19,7 +21,7 @@ This is a **full-stack web application** built as a GUVI assignment to demonstra
 | Web Layer | Spring MVC (`@Controller`, Thymeleaf) |
 | Persistence | Spring Data JPA + Hibernate |
 | Database | MySQL 8+ |
-| Validation | Jakarta Bean Validation (`@Valid`, `@NotBlank`, custom `@NoSpaces`) |
+| Validation | Jakarta Bean Validation (`@Valid`, `@NotBlank`, custom `@ValidName`) |
 | Boilerplate Reduction | Lombok (`@Builder`, `@Data`, `@RequiredArgsConstructor`) |
 | Build Tool | Apache Maven |
 | Dev Tools | Spring Boot DevTools (hot reload) |
@@ -87,9 +89,9 @@ src/main/java/in/guvi/task/springbootmvc/
 │   └── ResourceNotFoundException.java     # Custom RuntimeException for 404 scenarios
 │
 └── validations/
-    ├── NoSpacesValidator.java             # ConstraintValidator logic for @NoSpaces
+    ├── ValidNameValidator.java            # ConstraintValidator logic for @ValidName
     └── annotations/
-        └── NoSpaces.java                  # Custom constraint annotation definition
+        └── ValidName.java                 # Custom constraint annotation (letters + spaces only)
 
 src/main/resources/
 ├── application.properties                 # MySQL connection properties (custom prefix)
@@ -127,7 +129,7 @@ The user lands on a dashboard that presents two navigation cards — one for the
 | `POST` | `/product/edit/{id}` | Validates and updates the product |
 | `GET` | `/product/delete/{id}` | Deletes the product and redirects to the list |
 
-**Product Fields:** `productName` (String), `price` (Double ≥ 0), `category` (String)
+**Product Fields:** `productName` (String, letters & spaces only), `price` (Double ≥ 0, displayed in ₹), `category` (String)
 
 ---
 
@@ -142,7 +144,7 @@ The user lands on a dashboard that presents two navigation cards — one for the
 | `POST` | `/feedback/edit/{id}` | Validates and updates the feedback |
 | `GET` | `/feedback/delete/{id}` | Deletes the feedback and redirects to the list |
 
-**Feedback Fields:** `name` (Reader Name, String), `bookName` (String), `feedback` (Review text, String)
+**Feedback Fields:** `name` (Reader Name, letters & spaces only), `bookName` (String), `feedback` (Review text, String)
 
 ---
 
@@ -155,7 +157,7 @@ Validation is applied at multiple levels:
   - `@NotEmpty` — rejects empty strings
   - `@NotBlank` — rejects whitespace-only strings
   - `@Min(0)` — ensures price is non-negative
-- **Custom annotation** `@NoSpaces` — a bespoke constraint that rejects strings containing space characters, implemented via `NoSpacesValidator`.
+- **Custom annotation `@ValidName`** — rejects strings containing digits or special characters. Only alphabetic letters and single spaces between words are permitted (e.g. `"John Doe"` ✅, `"John123"` ❌, `"John@"` ❌). Implemented via `ValidNameValidator` using the regex `^[a-zA-Z]+(\s[a-zA-Z]+)*$`. Applied to the `name` field in `FeedbackRequestDto`/`FeedbackResponseDto` and `productName` in `ProductRequestDto`/`ProductResponseDto`.
 - **Controller-level enforcement** — `@Valid` on `@ModelAttribute` parameters triggers all constraints. Errors are captured by `BindingResult` and displayed inline on the form without a redirect.
 
 ---
@@ -265,7 +267,17 @@ Hibernate is configured with `hbm2ddl.auto=update`, which automatically creates 
 | **Builder Pattern** | Lombok `@Builder` used for clean entity and DTO construction |
 | **Repository Pattern** | Spring Data JPA repositories abstract all database access |
 | **PRG (Post/Redirect/Get)** | After successful POST, a redirect prevents form re-submission on refresh |
+| **Custom Constraint Validation** | `@ValidName` + `ValidNameValidator` enforce letters-only input via regex |
 | **DRY Principle** | `buildErrorResponse()` helper in `GlobalExceptionHandler` centralizes error construction |
+
+---
+
+## 📖 Documentation
+
+| File | Description |
+|---|---|
+| [README.md](README.md) | Project overview, setup, and API reference (this file) |
+| [CODE_EXPLANATION.md](CODE_EXPLANATION.md) | Detailed, beginner-friendly explanation of every file, annotation, pattern, and data flow in the codebase |
 
 ---
 

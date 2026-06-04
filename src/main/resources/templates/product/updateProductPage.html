@@ -22,7 +22,7 @@
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-gray-700">Price ($)</label>
+                <label class="block text-sm font-medium text-gray-700">Price (₹)</label>
                 <input type="number" step="0.01" th:field="*{price}" class="mt-1 p-2 block w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
                 <p th:if="${#fields.hasErrors('price')}" th:errors="*{price}" class="mt-1 text-sm text-red-600"></p>
             </div>
