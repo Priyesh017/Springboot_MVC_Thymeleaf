@@ -1,5 +1,6 @@
 package in.guvi.task.springbootmvc.dto;
 
+import in.guvi.task.springbootmvc.validations.annotations.ValidName;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -40,10 +41,11 @@ public class FeedbackResponseDto {
     @NotNull(message = "ID can't be null")
     private Long id;
 
-    /** The name of the reader. Must be present and non-blank. */
+    /** The name of the reader. Must be present, non-blank, and contain only letters and spaces. */
     @NotNull(message = "Reader name can't be null")
     @NotEmpty(message = "Reader name can't be empty")
     @NotBlank(message = "Reader name cannot consist of only empty spaces")
+    @ValidName(message = "Reader name must contain only letters and spaces")
     private String name;
 
     /** The title of the book the feedback relates to. Must be present and non-blank. */

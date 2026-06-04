@@ -1,5 +1,6 @@
 package in.guvi.task.springbootmvc.dto;
 
+import in.guvi.task.springbootmvc.validations.annotations.ValidName;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -37,14 +38,17 @@ public class FeedbackRequestDto {
     /**
      * The name of the reader submitting the feedback.
      * <ul>
-     *   <li>{@code @NotNull}  — field must not be absent (null)</li>
-     *   <li>{@code @NotEmpty} — field must not be an empty string ""</li>
-     *   <li>{@code @NotBlank} — field must not consist of only whitespace characters</li>
+     *   <li>{@code @NotNull}   — field must not be absent (null)</li>
+     *   <li>{@code @NotEmpty}  — field must not be an empty string ""</li>
+     *   <li>{@code @NotBlank}  — field must not consist of only whitespace characters</li>
+     *   <li>{@code @ValidName} — only alphabetic letters and single spaces are allowed;
+     *                            rejects digits (e.g., "John1") and special characters (e.g., "John@")</li>
      * </ul>
      */
     @NotNull(message = "Reader name can't be null")
     @NotEmpty(message = "Reader name can't be empty")
     @NotBlank(message = "Reader name cannot consist of only empty spaces")
+    @ValidName(message = "Reader name must contain only letters and spaces")
     private String name;
 
     /**

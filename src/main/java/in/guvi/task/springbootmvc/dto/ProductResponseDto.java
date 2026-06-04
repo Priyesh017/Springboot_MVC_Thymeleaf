@@ -1,6 +1,6 @@
 package in.guvi.task.springbootmvc.dto;
 
-import in.guvi.task.springbootmvc.validations.annotations.NoSpaces;
+import in.guvi.task.springbootmvc.validations.annotations.ValidName;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -20,9 +20,9 @@ import lombok.Data;
  * <p>The {@code @NoArgsConstructor} is intentionally omitted here because the {@code id}
  * field is {@code final}, and this DTO is always constructed via the builder in the service layer.
  *
- * <p>The custom {@link NoSpaces} annotation (on the field in the original design) is available
- * for fields that must not contain spaces — showing how custom validators integrate with standard
- * Jakarta Validation constraints.
+ * <p>The custom {@link ValidName} annotation is applied to {@code productName} to reject
+ * inputs containing digits or special characters (e.g., {@code "TV@4K"} or {@code "Laptop2"}),
+ * ensuring only semantically valid product names are stored.
  *
  * <p>Lombok annotations used:
  * <ul>
@@ -46,9 +46,13 @@ public class ProductResponseDto {
 
     /**
      * The name of the product.
-     * Must be non-null and non-blank in a valid response.
+     * <ul>
+     *   <li>{@code @NotBlank}  — must be non-null and non-blank</li>
+     *   <li>{@code @ValidName} — must contain only letters and spaces (no digits or symbols)</li>
+     * </ul>
      */
     @NotBlank(message = "Product name cannot be empty")
+    @ValidName(message = "Product name must contain only letters and spaces")
     private String productName;
 
     /**

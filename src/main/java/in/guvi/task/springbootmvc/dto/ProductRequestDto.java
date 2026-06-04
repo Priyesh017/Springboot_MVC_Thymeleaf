@@ -1,5 +1,6 @@
 package in.guvi.task.springbootmvc.dto;
 
+import in.guvi.task.springbootmvc.validations.annotations.ValidName;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -39,9 +40,14 @@ public class ProductRequestDto {
 
     /**
      * The product name/title submitted via the form.
-     * Cannot be null, empty, or whitespace-only.
+     * <ul>
+     *   <li>{@code @NotBlank}  — must not be null, empty, or whitespace-only</li>
+     *   <li>{@code @ValidName} — must contain only letters and spaces; blocks digits and symbols
+     *                            (e.g., "Laptop@123" or "TV#4K" would be rejected)</li>
+     * </ul>
      */
     @NotBlank(message = "Product name cannot be empty")
+    @ValidName(message = "Product name must contain only letters and spaces")
     private String productName;
 
     /**
