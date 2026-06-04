@@ -10,26 +10,44 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.NoHandlerFoundException;
 
 import java.time.LocalDateTime;
 
 /**
- * Global Exception Interceptor for the application.
- * Uses @RestControllerAdvice to catch exceptions thrown by any controller across the application
- * and translates them into standardized, user-friendly JSON HTTP responses.
+ * Global Exception Interceptor for the entire application.
+ *
+ * <p>{@code @RestControllerAdvice} is a specialization of {@code @ControllerAdvice} that applies
+ * across ALL controllers in the application. It intercepts exceptions thrown anywhere in the
+ * controller or service layers and converts them into structured, standardized JSON HTTP responses
+ * using the {@link ErrorResponseDto} format.
+ *
+ * <p>This centralized approach avoids duplicating try-catch blocks in every controller method
+ * and ensures clients always receive a consistent error payload (timestamp, status, error, message).
+ *
+ * <p>Each handler method is annotated with {@code @ExceptionHandler(SomeException.class)},
+ * telling Spring to invoke that method whenever the specified exception type is thrown.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    // SLF4J Logger to record error details in the server console/logs for debugging
+    /**
+     * SLF4J Logger used to write exception details to the server console/log files.
+     * Always log internally before returning a sanitized response to the client —
+     * the client should never see raw stack traces for security reasons.
+     */
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     /**
-     * Intercepts custom ResourceNotFoundException.
-     * Triggered when a requested entity (e.g., an Employee ID) does not exist in the database.
+     * Handles the custom {@link ResourceNotFoundException}.
      *
-     * @param ex The intercepted ResourceNotFoundException.
-     * @return Standardized ErrorResponse with a 404 (NOT_FOUND) status.
+     * <p>Triggered when a service method calls {@code repository.findById(id).orElseThrow(...)},
+     * and no matching record is found in the database (e.g., editing or deleting a non-existent product).
+     *
+     * <p>HTTP response: {@code 404 NOT FOUND}
+     *
+     * @param ex the intercepted {@link ResourceNotFoundException} carrying the "not found" message
+     * @return a {@link ResponseEntity} containing an {@link ErrorResponseDto} with 404 status
      */
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponseDto> handleResourceNotFound(ResourceNotFoundException ex) {
@@ -38,11 +56,16 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Intercepts database constraint violations.
-     * Triggered when attempting to save duplicate unique data (like an email) or breaking foreign keys.
+     * Handles database-level constraint violations.
      *
-     * @param ex The intercepted DataIntegrityViolationException.
-     * @return Standardized ErrorResponse with a 409 (CONFLICT) status.
+     * <p>Triggered when Spring Data JPA / Hibernate attempts to execute an INSERT or UPDATE
+     * that violates a database constraint (e.g., duplicate entry for a UNIQUE column,
+     * or a missing foreign key reference).
+     *
+     * <p>HTTP response: {@code 409 CONFLICT}
+     *
+     * @param ex the intercepted {@link DataIntegrityViolationException}
+     * @return a {@link ResponseEntity} with a 409 status and a conflict message
      */
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorResponseDto> handleDatabaseConstraintViolation(DataIntegrityViolationException ex) {
@@ -51,26 +74,37 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Intercepts validation errors from @Valid / @Validated annotations.
-     * Triggered when the incoming JSON payload fails constraints (e.g., missing @NotNull fields).
+     * Handles Bean Validation failures triggered by {@code @Valid} on controller method parameters.
      *
-     * @param ex The intercepted MethodArgumentNotValidException.
-     * @return Standardized ErrorResponse with a 400 (BAD_REQUEST) status.
+     * <p>When any constraint (e.g., {@code @NotNull}, {@code @NotBlank}, {@code @Min}) fails
+     * on an incoming request body or form DTO, Spring MVC throws a
+     * {@link MethodArgumentNotValidException}. This handler extracts the first field-level
+     * error message and returns it to the client.
+     *
+     * <p>HTTP response: {@code 400 BAD REQUEST}
+     *
+     * @param ex the intercepted {@link MethodArgumentNotValidException} containing field errors
+     * @return a {@link ResponseEntity} with a 400 status and the first validation error message
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponseDto> handleValidationExceptions(MethodArgumentNotValidException ex) {
         logger.error("Validation error: {}", ex.getMessage());
-        // Extracts the specific field error message (e.g., "Email cannot be blank")
+        // Extract only the first field-level violation message (e.g., "Price cannot be negative")
         String errorMessage = ex.getBindingResult().getFieldErrors().get(0).getDefaultMessage();
         return buildErrorResponse(new RuntimeException(errorMessage), HttpStatus.BAD_REQUEST, "Validation Failed");
     }
 
     /**
-     * Intercepts type mismatch errors in the URI.
-     * Triggered when a client passes the wrong data type in a @PathVariable (e.g., passing a String when an Integer is expected).
+     * Handles type mismatches in URL path variables or request parameters.
      *
-     * @param ex The intercepted MethodArgumentTypeMismatchException.
-     * @return Standardized ErrorResponse with a 400 (BAD_REQUEST) status.
+     * <p>Triggered when a client provides a value of the wrong type in a {@code @PathVariable}
+     * or {@code @RequestParam} — for example, passing the string "abc" where a {@code Long} ID is expected:
+     * {@code GET /product/edit/abc} would trigger this handler.
+     *
+     * <p>HTTP response: {@code 400 BAD REQUEST}
+     *
+     * @param ex the intercepted {@link MethodArgumentTypeMismatchException}
+     * @return a {@link ResponseEntity} with a 400 status and an invalid-parameter-type message
      */
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ErrorResponseDto> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
@@ -79,19 +113,23 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Catch-All Handler for any unexpected runtime or system exceptions.
-     * Acts as a safety net to prevent raw server stack traces from leaking to the client,
-     * which is a critical security best practice.
+     * Catch-all fallback handler for any unexpected exception not covered by the handlers above.
      *
-     * @param ex The generic Exception intercepted.
-     * @return Standardized ErrorResponse with a generic message and a 500 (INTERNAL_SERVER_ERROR) status.
+     * <p>Acts as a final safety net to prevent raw Java stack traces from leaking in the
+     * HTTP response (a critical security practice). The full exception is logged internally
+     * for debugging, but only a generic message is returned to the client.
+     *
+     * <p>HTTP response: {@code 500 INTERNAL SERVER ERROR}
+     *
+     * @param ex any unhandled {@link Exception} thrown within the application
+     * @return a {@link ResponseEntity} with a 500 status and a generic error message
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponseDto> handleGlobalException(Exception ex) {
         // Log the full stack trace internally for developers to debug
         logger.error("Unexpected System Error occurred", ex);
 
-        // Return a sanitized response to the external client
+        // Return a sanitized, generic response to the external client (no stack trace exposed)
         ErrorResponseDto errorResponseDto = ErrorResponseDto.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
@@ -103,20 +141,39 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Helper method to construct the ErrorResponse object.
-     * Promotes the DRY (Don't Repeat Yourself) principle by centralizing the builder logic.
+     * Handles requests to URLs that have no matching controller handler.
      *
-     * @param ex The exception containing the error message.
-     * @param status The HTTP status code to return.
-     * @param customErrorTitle A high-level category or title for the error.
-     * @return A fully populated ResponseEntity.
+     * <p>Intercepting {@link NoHandlerFoundException} silences browser-generated requests
+     * like {@code GET /favicon.ico} and prevents them from bubbling up to the generic
+     * 500-handler. Returns a plain 404 response body instead.
+     *
+     * @param ex the intercepted {@link NoHandlerFoundException}
+     * @return a {@link ResponseEntity} with 404 status and a plain "Resource not found" message
+     */
+    @ExceptionHandler(NoHandlerFoundException.class)
+    public ResponseEntity<String> handleNotFoundError(NoHandlerFoundException ex) {
+        // Silently intercepts unmatched URLs (e.g., /favicon.ico) with a clean 404
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Resource not found");
+    }
+
+    /**
+     * Shared helper method that constructs a standardized {@link ErrorResponseDto} response.
+     *
+     * <p>Promotes the DRY (Don't Repeat Yourself) principle — all error-building logic
+     * is centralized here. Each specific handler delegates to this method to avoid
+     * duplicating the builder block.
+     *
+     * @param ex               the exception whose message will populate the {@code message} field
+     * @param status           the HTTP status code to apply (e.g., 404, 400, 409)
+     * @param customErrorTitle a short, human-readable title for the error category
+     * @return a fully constructed {@link ResponseEntity} ready to be returned from the handler
      */
     private ResponseEntity<ErrorResponseDto> buildErrorResponse(Exception ex, HttpStatus status, String customErrorTitle) {
         ErrorResponseDto errorResponseDto = ErrorResponseDto.builder()
-                .timestamp(LocalDateTime.now())
-                .status(status.value())
-                .error(customErrorTitle)
-                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())    // Capture the exact time of the error
+                .status(status.value())            // e.g., 404, 400, 409
+                .error(customErrorTitle)           // Human-readable error category
+                .message(ex.getMessage())          // Specific exception detail message
                 .build();
 
         return new ResponseEntity<>(errorResponseDto, status);
