@@ -1,5 +1,6 @@
 package in.guvi.task.springbootmvc;
 
+import io.github.cdimascio.dotenv.Dotenv;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
@@ -23,13 +24,30 @@ public class SpringbootmvcApplication {
 
 	/**
 	 * Application bootstrap method.
-	 * Delegates to {@link SpringApplication#run} to launch the embedded Tomcat server,
-	 * load the Spring application context, and start all configured beans.
+	 *
+	 * <p>Before handing off to Spring, we load the {@code .env} file (if present)
+	 * and inject each entry as a Java system property. This makes variables like
+	 * {@code DB_URL} available for Spring's {@code ${...}} placeholder resolution
+	 * in {@code application.properties}.
+	 *
+	 * <p>On Render (production), no {@code .env} file exists — dotenv silently
+	 * skips loading and the real OS environment variables are used instead.
 	 *
 	 * @param args command-line arguments passed at startup (not used in this app)
 	 */
 	public static void main(String[] args) {
+		// Load .env into system properties BEFORE Spring reads application.properties
+		Dotenv dotenv = Dotenv.configure()
+				.ignoreIfMissing()   // Safe on Render — no .env file needed in production
+				.ignoreIfMalformed() // Skip malformed lines without crashing
+				.load();
+
+		dotenv.entries().forEach(entry ->
+				System.setProperty(entry.getKey(), entry.getValue())
+		);
+
 		SpringApplication.run(SpringbootmvcApplication.class, args);
 	}
 
 }
+
